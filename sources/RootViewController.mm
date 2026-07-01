@@ -1,7 +1,6 @@
 #import "RootViewController.h"
 #import <WebKit/WebKit.h>
 #include "ENCRYPT/xorstr.hpp"
-#import <MobileCoreServices/MobileCoreServices.h> // จำเป็นต้องใช้เพื่อดึงคลาสสำหรับเช็กประเภทไฟล์ (MIME-Type)
 
 // ประกาศเพิ่มโปรโตคอล <WKURLSchemeHandler> เพื่อรับหน้าที่เป็นเว็บเซิร์ฟเวอร์จำลองในแอป
 @interface RootViewController () <WKNavigationDelegate, WKUIDelegate, WKURLSchemeHandler>
@@ -74,8 +73,7 @@
         NSLog(@"[WebKit] กำลังโหลดโหมด: ลิงก์ URL ออนไลน์");
         
     } else if ([targetURL isEqualToString:@"0"]) {
-        // โหมดโหลดไฟล์ HTML ในแอป (จับคู่กับไฟล์ abcd.js ที่แตกไฟล์จาก zip ลง layout/Resources/)
-        // เปลี่ยนมาสั่งโหลดผ่านโปรโตคอล "localpatch://" เพื่อยัด Headers ปลดล็อกความปลอดภัยให้กับ FFmpeg Engine
+        // โหมดโหลดไฟล์ HTML ในแอปผ่านโปรโตคอลจำลอง
         NSURL *customURL = [NSURL URLWithString:@"localpatch://localhost/Archive/index.html"];
         NSURLRequest *request = [NSURLRequest requestWithURL:customURL];
         [self.webView loadRequest:request];
@@ -85,39 +83,46 @@
 
 #pragma mark - WKURLSchemeHandler (ระบบจำลองเซิร์ฟเวอร์ ยัด Headers หลอก WebKit)
 
-// ฟังก์ชันนี้จะดักสัญญาณทุกครั้งที่หน้าเว็บเรียกหาไฟล์ (เช่น เรียก index.html หรือ abcd.js)
 - (void)webView:(WKWebView *)webView startURLSchemeTask:(id<WKURLSchemeTask>)urlSchemeTask {
     NSURL *url = urlSchemeTask.request.URL;
-    NSString *path = url.path; // จะได้ค่าพาธไฟล์ เช่น "/Archive/index.html" หรือ "/Archive/abcd.js"
+    NSString *path = url.path; // เช่น "/Archive/index.html" หรือ "/Archive/abcd.js"
     
-    // ค้นหาตำแหน่งไฟล์จริงภายใน Main Bundle ของแอป ที่มาจากโฟลเดอร์ layout/Resources ของ Theos
+    // ค้นหาตำแหน่งไฟล์จริงภายใน Resources (.ipa)
     NSString *resourcePath = [[NSBundle mainBundle] resourcePath];
     NSString *fullPath = [resourcePath stringByAppendingPathComponent:path];
     
-    // ตรวจสอบว่ามีไฟล์อยู่จริงในเครื่องทราสหรือไม่
     if ([[NSFileManager defaultManager] fileExistsAtPath:fullPath]) {
         NSData *data = [NSData dataWithContentsOfFile:fullPath];
         
-        // ค้นหาและตั้งค่า MIME-Type (เช่น text/html, application/javascript) ตามนามสกุลไฟล์โดยอัตโนมัติ
-        NSString *extension = [fullPath pathExtension];
-        NSString *mimeType = @"text/plain";
-        CFStringRef uti = UTTypeCreateInferenceFromExtension((__bridge CFStringRef)extension);
-        if (uti) {
-            NSString *registeredType = (__bridge_transfer NSString *)UTTypeCopyPreferredTagWithClass(uti, kUTTagClassMIMEType);
-            if (registeredType) mimeType = registeredType;
-            CFRelease(uti);
+        // 🛠️ ตรวจสอบชนิดไฟล์ (MIME-Type) แบบระบุเอง ปลอดภัยจากปัญหาคอมไพล์ไม่ผ่านแน่นอน
+        NSString *extension = [[fullPath pathExtension] lowercaseString];
+        NSString *mimeType = @"text/plain"; // ค่าเริ่มต้นถ้าไม่ตรงกับอะไรเลย
+        
+        if ([extension isEqualToString:@"html"] || [extension isEqualToString:@"htm"]) {
+            mimeType = @"text/html";
+        } else if ([extension isEqualToString:@"js"]) {
+            mimeType = @"application/javascript";
+        } else if ([extension isEqualToString:@"css"]) {
+            mimeType = @"text/css";
+        } else if ([extension isEqualToString:@"png"]) {
+            mimeType = @"image/png";
+        } else if ([extension isEqualToString:@"jpg"] || [extension isEqualToString:@"jpeg"]) {
+            mimeType = @"image/jpeg";
+        } else if ([extension isEqualToString:@"mp4"]) {
+            mimeType = @"video/mp4";
+        } else if ([extension isEqualToString:@"wasm"]) {
+            mimeType = @"application/wasm";
         }
         
-        // 🔑 [หัวใจสำคัญ] ยัด COOP และ COEP Headers เพื่อปลดล็อกให้สคริปต์ออนไลน์สร้าง SharedArrayBuffer สำเร็จ
+        // 🔑 [หัวใจสำคัญ] ยัด COOP และ COEP Headers เพื่อปลดล็อกระบบความปลอดภัยให้ FFmpeg โหลดผ่าน
         NSDictionary *headers = @{
             @"Content-Type": mimeType,
             @"Content-Length": [NSString stringWithFormat:@"%lu", (unsigned long)data.length],
             @"Access-Control-Allow-Origin": @"*",
-            @"Cross-Origin-Opener-Policy": @"same-origin",   // 👈 ปลดล็อกบราวเซอร์บล็อกเอนจิน
-            @"Cross-Origin-Embedder-Policy": @"require-corp" // 👈 ปลดล็อกบราวเซอร์บล็อกเอนจิน
+            @"Cross-Origin-Opener-Policy": @"same-origin",   
+            @"Cross-Origin-Embedder-Policy": @"require-corp" 
         };
         
-        // ประกอบ Response ส่งกลับไปให้หน้าเว็บประมวลผลต่อ
         NSHTTPURLResponse *response = [[NSHTTPURLResponse alloc] initWithURL:url statusCode:200 HTTPVersion:@"HTTP/1.1" headerFields:headers];
         
         [urlSchemeTask didReceiveResponse:response];
@@ -125,7 +130,6 @@
         [urlSchemeTask didFinish];
         
     } else {
-        // หากไม่พบไฟล์ ส่งสถานะ 404 กลับไป
         NSHTTPURLResponse *response = [[NSHTTPURLResponse alloc] initWithURL:url statusCode:404 HTTPVersion:@"HTTP/1.1" headerFields:nil];
         [urlSchemeTask didReceiveResponse:response];
         [urlSchemeTask didFinish];
@@ -133,7 +137,7 @@
 }
 
 - (void)webView:(WKWebView *)webView stopURLSchemeTask:(id<WKURLSchemeTask>)urlSchemeTask {
-    // ปล่อยว่างไว้ ไม่จำเป็นต้องประมวลผลเมื่อสิ้นสุดคำสั่งส่งไฟล์
+    // ปล่อยว่างไว้
 }
 
 #pragma mark - WKNavigationDelegate
