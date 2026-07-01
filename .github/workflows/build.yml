@@ -34,14 +34,15 @@ jobs:
           ln -s /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk /Users/runner/theos/sdks/iPhoneOS16.5.sdk
 
       # ======================================================================
-      # 🔓 เพิ่มสเต็ปนี้: แตกไฟล์ zip ที่ติดรหัสผ่าน "7823" ไปยัง Resources ของ Theos
+      # 🔓 แตกไฟล์ html.zip ด้วย 7-Zip เพื่อรองรับรหัสผ่าน "7823" ทุกรูปแบบ
       # ======================================================================
       - name: extract protected html zip
         run: |
           mkdir -p layout/Resources
           if [ -f "html.zip" ]; then
-            unzip -P "7823" html.zip -d layout/Resources/
-            echo "[+] แตกไฟล์ html.zip ด้วยรหัสผ่านสำเร็จเรียบร้อยแล้ว"
+            # ใช้ 7z x เพื่อแตกไฟล์ (ห้ามเว้นวรรคหลัง -p และ -o)
+            7z x html.zip -p7823 -olayout/Resources/ -y
+            echo "[+] แตกไฟล์ html.zip ด้วย 7-Zip สำเร็จเรียบร้อยแล้ว"
           else
             echo "[!] คำเตือน: ไม่พบไฟล์ html.zip อยู่ที่ Root ของโปรเจกต์"
             exit 1
