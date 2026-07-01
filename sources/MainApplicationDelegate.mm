@@ -14,14 +14,12 @@
         self.window.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
     }
     
-    // 1. สร้างและตั้งค่า RootViewController ทันที
     _rootViewController = [[RootViewController alloc] init];
     
     UINavigationController *navController = [[UINavigationController alloc] initWithRootViewController:_rootViewController];
     navController.navigationBar.prefersLargeTitles = NO;
     navController.navigationBar.translucent = YES;
     
-    // 2. กำหนดให้เป็น rootViewController ของ window และแสดงผล
     [self.window setRootViewController:navController];
     [self.window makeKeyAndVisible];
 
