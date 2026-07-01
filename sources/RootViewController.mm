@@ -57,7 +57,7 @@
     // ⚙️ ตั้งค่าตามที่คุณเลือก: ช่องลิงก์ใส่ "0" และช่องไฟล์ใส่ชื่อ "index"
     // ======================================================================
     NSString *targetURL  = [NSString stringWithUTF8String:xorstr_("0")];
-    NSString *htmlName  = [NSString stringWithUTF8String:xorstr_("index")]; 
+    NSString *htmlName  = [NSString stringWithUTF8String:xorstr_("Archive/index")]; 
     // ======================================================================
 
     // ระบบตรวจสอบสวิตช์เงื่อนไข
