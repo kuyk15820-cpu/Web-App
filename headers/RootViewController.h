@@ -1,5 +1,5 @@
 #import <UIKit/UIKit.h>
+#import <WebKit/WebKit.h>
 
-@interface RootViewController : UIViewController
-
+@interface RootViewController : UIViewController <WKURLSchemeHandler>
 @end
