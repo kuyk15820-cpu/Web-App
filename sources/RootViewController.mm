@@ -23,7 +23,7 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     
-    self.view.backgroundColor = [UIColor blackColor];
+    self.view.backgroundColor = [UIColor whiteColor];
     
     if (self.navigationController) {
         self.navigationController.navigationBarHidden = YES;
@@ -46,8 +46,12 @@
     self.webView = [[WKWebView alloc] initWithFrame:self.view.bounds configuration:config];
     self.webView.navigationDelegate = self;
     self.webView.UIDelegate = self;
-    self.webView.backgroundColor = [UIColor blackColor];
+    self.webView.backgroundColor = [UIColor clearColor];
     self.webView.opaque = NO;
+    
+    if (@available(iOS 15.0, *)) {
+        self.webView.scrollView.backgroundColor = [UIColor clearColor];
+    }
     
     self.webView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [self.view addSubview:self.webView];
