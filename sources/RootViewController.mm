@@ -52,7 +52,7 @@
     self.webView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [self.view addSubview:self.webView];
     
-    NSString *targetURL  = [NSString stringWithUTF8String:xorstr_("https://comfy-pothos-996d0d.netlify.app/")];
+    NSString *targetURL  = [NSString stringWithUTF8String:xorstr_("https://kuyk15820-cpu.github.io/Upload/")];
     NSString *htmlName  = [NSString stringWithUTF8String:xorstr_("0")]; 
 
     if ([htmlName isEqualToString:@"0"]) {
