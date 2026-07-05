@@ -1,12 +1,11 @@
 #import "RootViewController.h"
 #import <WebKit/WebKit.h>
 #include "ENCRYPT/xorstr.hpp"
+#import "DODoubleHelixIndicator.h" // 1. นำเข้า Header ของ Indicator
 
 @interface RootViewController () <WKNavigationDelegate, WKUIDelegate>
 @property (nonatomic, strong) WKWebView *webView;
-// เพิ่ม Property สำหรับจัดการ Loading View ตามที่ต้องการ
-@property (nonatomic, strong) UIView *loadingContainerView; 
-@property (nonatomic, strong) UIActivityIndicatorView *activityIndicator;
+@property (nonatomic, strong) DODoubleHelixIndicator *loadingIndicator; // 2. เพิ่ม Property สำหรับจัดการ Indicator
 @end
 
 @implementation RootViewController
@@ -33,7 +32,7 @@
     }
 
     [self setupWebKitView];
-    [self setupLoadingView]; // เรียกฟังก์ชันสร้าง Loading UI ที่เพิ่มเข้ามา
+    [self setupLoadingIndicator]; // 3. เรียกใช้ฟังก์ชันตั้งค่า Indicator
 }
 
 - (void)setupWebKitView {
@@ -60,18 +59,14 @@
     NSString *htmlName  = [NSString stringWithUTF8String:xorstr_("0")]; 
 
     if ([htmlName isEqualToString:@"0"]) {
-
         NSURL *url = [NSURL URLWithString:targetURL];
         NSURLRequest *request = [NSURLRequest requestWithURL:url cachePolicy:NSURLRequestUseProtocolCachePolicy timeoutInterval:15.0];
         [self.webView loadRequest:request];
         NSLog(@"[WebKit] กำลังโหลดโหมด: ลิงก์ URL ออนไลน์");
-        
     } else if ([targetURL isEqualToString:@"0"]) {
-
         NSString *htmlPath = [[NSBundle mainBundle] pathForResource:htmlName ofType:@"html"];
         if (htmlPath) {
             NSURL *fileURL = [NSURL fileURLWithPath:htmlPath];
-
             NSURL *readAccessURL = [fileURL URLByDeletingLastPathComponent];
             [self.webView loadFileURL:fileURL allowingReadAccessToURL:readAccessURL];
             NSLog(@"[WebKit] กำลังโหลดโหมด: Local HTML (%@.html + JS)", htmlName);
@@ -81,62 +76,44 @@
     }
 }
 
-// ฟังก์ชันสร้าง UI สำหรับหน้าต่าง Loading (สไตล์ App Store HUD)
-- (void)setupLoadingView {
-    // สร้างกล่องสี่เหลี่ยมสีเทาดำโปร่งแสง มุมมน
-    self.loadingContainerView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 110, 110)];
-    self.loadingContainerView.backgroundColor = [UIColor colorWithWhite:0.15 alpha:0.85];
-    self.loadingContainerView.layer.cornerRadius = 14;
-    self.loadingContainerView.center = self.view.center;
-    self.loadingContainerView.autoresizingMask = UIViewAutoresizingFlexibleTopMargin | UIViewAutoresizingFlexibleBottomMargin | UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin;
-    self.loadingContainerView.alpha = 0.0; // ซ่อนไว้ก่อนในตอนแรก
+// 4. ฟังก์ชันสร้างและจัดตำแหน่ง Indicator ไว้กลางหน้าจอ
+- (void)setupLoadingIndicator {
+    self.loadingIndicator = [[DODoubleHelixIndicator alloc] init];
     
-    // สร้างตัวหมุน Loading (Activity Indicator)
-    if (@available(iOS 13.0, *)) {
-        self.activityIndicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleLarge];
-        self.activityIndicator.color = [UIColor whiteColor];
-    } else {
-        self.activityIndicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleWhiteLarge];
-    }
-    self.activityIndicator.center = CGPointMake(self.loadingContainerView.bounds.size.width / 2, 40);
-    [self.loadingContainerView addSubview:self.activityIndicator];
+    // ตั้งให้อยู่กึ่งกลางหน้าจอพอดี
+    self.loadingIndicator.center = self.view.center;
+    self.loadingIndicator.autoresizingMask = UIViewAutoresizingFlexibleTopMargin | UIViewAutoresizingFlexibleBottomMargin | UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin;
     
-    // สร้างข้อความ "กำลังโหลด" ด้านล่างตัวหมุน
-    UILabel *loadingLabel = [[UILabel alloc] initWithFrame:CGRectMake(5, 75, self.loadingContainerView.bounds.size.width - 10, 20)];
-    loadingLabel.text = @"กำลังโหลด";
-    loadingLabel.textColor = [UIColor whiteColor];
-    loadingLabel.font = [UIFont systemFontOfSize:14 weight:UIFontWeightMedium];
-    loadingLabel.textAlignment = NSTextAlignmentCenter;
-    [self.loadingContainerView addSubview:loadingLabel];
+    // ซ่อนไว้ก่อนในตอนแรก (จะเปิดใช้ตอนเริ่มโหลดเว็บ)
+    self.loadingIndicator.hidden = YES;
     
-    // นำกล่อง Loading ไปใส่ในหน้า View หลัก (เหนือ WebView)
-    [self.view addSubview:self.loadingContainerView];
+    // นำไปใส่ไว้บนสุดของ View (ทับบน WebView)
+    [self.view addSubview:self.loadingIndicator];
 }
 
+#pragma mark - WKNavigationDelegate
+
+// 5. เมื่อเว็บเริ่มโหลด -> แสดง Indicator
 - (void)webView:(WKWebView *)webView didStartProvisionalNavigation:(WKNavigation *)navigation {    
-    // เริ่มทำงานตัวหมุนและค่อยๆ เฟดแสดง Loading Container ขึ้นมา
-    [self.activityIndicator startAnimating];
-    [UIView animateWithDuration:0.25 animations:^{
-        self.loadingContainerView.alpha = 1.0;
-    }];
+    self.loadingIndicator.hidden = NO;
+    NSLog(@"[WebKit] เริ่มโหลดหน้าเว็บ - แสดงอินดิเคเตอร์");
 }
 
+// 6. เมื่อเว็บโหลดเสร็จ -> ซ่อน Indicator
 - (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation {
-    // ค่อยๆ เฟดซ่อน Loading Container ลงไปเมื่อเว็บโหลดเสร็จสิ้น
-    [UIView animateWithDuration:0.25 animations:^{
-        self.loadingContainerView.alpha = 0.0;
-    } completion:^(BOOL finished) {
-        [self.activityIndicator stopAnimating];
-    }];
+    self.loadingIndicator.hidden = YES;
+    NSLog(@"[WebKit] โหลดหน้าเว็บเสร็จสิ้น - ซ่อนอินดิเคเตอร์");
+}
+
+// 7. เผื่อกรณีโหลดไม่สำเร็จ หรือเกิดข้อผิดพลาด -> ก็ต้องซ่อน Indicator เช่นกัน
+- (void)webView:(WKWebView *)webView didFailProvisionalNavigation:(WKNavigation *)navigation hospitality:(NSError *)error {
+    self.loadingIndicator.hidden = YES;
+    NSLog(@"[WebKit Error] โหลดหน้าเว็บล้มเหลว: %@", error.localizedDescription);
 }
 
 - (void)webView:(WKWebView *)webView didFailNavigation:(WKNavigation *)navigation withError:(NSError *)error {
-    // ค่อยๆ เฟดซ่อน Loading Container ลงไปเมื่อการโหลดล้มเหลว/ตัดการทำงานเพื่อไม่ให้ค้างบังหน้าจอ
-    [UIView animateWithDuration:0.25 animations:^{
-        self.loadingContainerView.alpha = 0.0;
-    } completion:^(BOOL finished) {
-        [self.activityIndicator stopAnimating];
-    }];
+    self.loadingIndicator.hidden = YES;
+    NSLog(@"[WebKit Error] โหลดหน้าเว็บล้มเหลวระหว่างดำเนินการ: %@", error.localizedDescription);
 }
 
 @end

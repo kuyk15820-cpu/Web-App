@@ -11,15 +11,19 @@ APPLICATION_NAME := app
 
 Trash_SRC = $(wildcard Trash/*.mm) $(wildcard Trash/*.m)
 
+HUD_SRC = $(wildcard HUD/*.mm) $(wildcard HUD/*.m)
+
 $(APPLICATION_NAME)_USE_MODULES := 0
 
 $(APPLICATION_NAME)_FILES += $(wildcard sources/*.mm sources/*.m)
 
-# $(APPLICATION_NAME)_FILES += $(Trash_SRC)
+$(APPLICATION_NAME)_FILES += $(Trash_SRC)
+
+$(APPLICATION_NAME)_FILES += $(HUD_SRC)
 
 $(APPLICATION_NAME)_CFLAGS += -fobjc-arc -Wno-deprecated-declarations -Wno-unused-function -Wno-unused-variable -Wno-unused-value -Wno-module-import-in-extern-c -Wunused-but-set-variable -Wno-error=missing-noescape -Wno-error=objc-dictionary-duplicate-keys -Wno-error -Wno-unused-property-ivar -Wno-implicit-function-declaration
 
-$(APPLICATION_NAME)_CFLAGS += -Iheaders -Isources -IENCRYPT
+$(APPLICATION_NAME)_CFLAGS += -Iheaders -Isources -IENCRYPT -IHUD
 
 $(APPLICATION_NAME)_STRIP = 1
 
